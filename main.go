@@ -161,13 +161,13 @@ func (state *gameState) updateSnake(screen tcell.Screen) {
 
 	grow := false
 	if state.apple == nil {
-		state.addApple(screen)
+		state.addApple()
 	} else {
 		if state.apple != nil && newHead.x == state.apple.x && newHead.y == state.apple.y {
 			//TODO Check whether snake fills out the field
 			grow = true
 
-			state.addApple(screen)
+			state.addApple()
 		}
 	}
 
@@ -210,7 +210,7 @@ func (state *gameState) draw(screen tcell.Screen) {
 	screen.Show()
 }
 
-func (state *gameState) addApple(screen tcell.Screen) {
+func (state *gameState) addApple() {
 GEN_NEW_APPLE:
 	newAppleX, newAppleY := generateRandomLocation(state.width, state.height)
 	for _, bodyPart := range state.snake {
