@@ -60,8 +60,6 @@ func main() {
 	}
 	state.draw(screen)
 
-	screen.Show()
-
 	//User Eventloop
 	go func() {
 		for {
