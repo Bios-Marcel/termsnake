@@ -50,12 +50,13 @@ func main() {
 	screen.Clear()
 
 	width, height := screen.Size()
-	snakeX, snakeY := generateRandomLocation(width, height)
+	halfWidth := width / 2
 	state := &gameState{
 		lock:   &sync.Mutex{},
 		width:  width,
 		height: height,
-		snake:  []*loc{{snakeX, snakeY}},
+		//Let snake start at the bottom and make sure it's not on an odd x coordinate.
+		snake:  []*loc{{halfWidth - (halfWidth % 2), height - 1}},
 	}
 	state.draw(screen)
 
