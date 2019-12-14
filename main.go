@@ -125,6 +125,7 @@ func (state *gameState) gameOver(screen tcell.Screen) {
 
 func (state *gameState) updateSnake(screen tcell.Screen) {
 	state.lock.Lock()
+	defer state.lock.Unlock()
 
 	state.clearScreen(screen)
 
@@ -182,10 +183,10 @@ func (state *gameState) updateSnake(screen tcell.Screen) {
 	state.snake = append(state.snake, newHead)
 
 	state.draw(screen)
-
-	state.lock.Unlock()
 }
 
+// clearScreen only clears the fields of the screen that have already been
+// drawn to according to the current state.
 func (state *gameState) clearScreen(screen tcell.Screen) {
 	if state.apple != nil {
 		screen.SetCell(state.apple.x, state.apple.y, tcell.StyleDefault, ' ')
@@ -198,6 +199,8 @@ func (state *gameState) clearScreen(screen tcell.Screen) {
 	}
 }
 
+// draw fills the screen according to state. It draws the apple and the
+// snake, followed by pushing the update to the terminal. 
 func (state *gameState) draw(screen tcell.Screen) {
 	if state.apple != nil {
 		screen.SetContent(state.apple.x, state.apple.y, apple[0], apple[1:], tcell.StyleDefault)
@@ -211,6 +214,8 @@ func (state *gameState) draw(screen tcell.Screen) {
 	screen.Show()
 }
 
+// addApple sets a new apple for the state. The apple will spawn anywhere,
+// except for where any body part of the snake already is.
 func (state *gameState) addApple() {
 GEN_NEW_APPLE:
 	newAppleX, newAppleY := generateRandomLocation(state.width, state.height)
