@@ -159,9 +159,9 @@ func (state *gameState) updateSnake(screen tcell.Screen) {
 	}
 
 	//if the head is out of screen, we are dead
-	oldHeadChar, _, _, _ := screen.GetContent(oldHead.x, oldHead.y)
-	if oldHeadChar == 0 {
-		state.gameOver(screen)
+	if oldHead.y < 0 || oldHead.y >= state.height ||
+		oldHead.x < 0 || oldHead.x >= state.width {
+		state.gameOver(screen)	
 	}
 
 	var heading direction
@@ -233,7 +233,7 @@ func (state *gameState) clearScreen(screen tcell.Screen) {
 		screen.SetCell(bodyPart.x+1, bodyPart.y, tcell.StyleDefault, ' ')
 	}
 
-	//Clear bottombar staring at 7, sicne we want to leave "Score: "
+	//Clear bottombar staring at 7, since we want to leave "Score: "
 	for i := 7; i < state.width; i++ {
 		screen.SetCell(i, state.height, tcell.StyleDefault, ' ')
 	}
