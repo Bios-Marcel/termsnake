@@ -20,12 +20,13 @@ type loc struct {
 }
 
 type gameState struct {
-	snake   []*loc
-	apple   *loc
-	lock    *sync.Mutex
-	heading direction
-	width   int
-	height  int
+	snake       []*loc
+	apple       *loc
+	lock        *sync.Mutex
+	heading     direction
+	lastHeading direction
+	width       int
+	height      int
 }
 
 func main() {
@@ -56,7 +57,8 @@ func main() {
 		width:  width,
 		height: height,
 		//Let snake start at the bottom and make sure it's not on an odd x coordinate.
-		snake:  []*loc{{halfWidth - (halfWidth % 2), height - 1}},
+		snake:   []*loc{{halfWidth - (halfWidth % 2), height - 1}},
+		heading: up,
 	}
 	state.draw(screen)
 
@@ -98,21 +100,26 @@ func main() {
 type direction int
 
 const (
-	up    direction = 0
-	right           = 1
-	down            = 2
-	left            = 3
+	none  direction = 0
+	up              = 1
+	right           = 2
+	down            = 3
+	left            = 4
 )
 
 func (state *gameState) changeDirection(newDirection direction) {
 	state.lock.Lock()
-	if len(state.snake) == 1 || state.heading == up && newDirection != down ||
-		state.heading == left && newDirection != right || state.heading == right && newDirection != left ||
-		state.heading == down && newDirection != up {
-		state.heading = newDirection
-	}
+	defer state.lock.Unlock()
 
-	state.lock.Unlock()
+	//Directions can only be changed one inbetween one screen-update
+	if state.heading == none {
+		if len(state.snake) == 1 || state.lastHeading == up && newDirection != down ||
+			state.lastHeading == left && newDirection != right ||
+			state.lastHeading == right && newDirection != left ||
+			state.lastHeading == down && newDirection != up {
+			state.heading = newDirection
+		}
+	}
 }
 
 func (state *gameState) gameOver(screen tcell.Screen) {
@@ -136,13 +143,22 @@ func (state *gameState) updateSnake(screen tcell.Screen) {
 		oldHead = state.snake[len(state.snake)-1]
 	}
 
+	//if the head is out of screen, we are dead
 	oldHeadChar, _, _, _ := screen.GetContent(oldHead.x, oldHead.y)
 	if oldHeadChar == 0 {
 		state.gameOver(screen)
 	}
 
+	var heading direction
+	if state.heading == none {
+		heading = state.lastHeading
+	} else {
+		heading = state.heading
+	}
+
 	newHead := &loc{oldHead.x, oldHead.y}
-	switch state.heading {
+
+	switch heading {
 	case up:
 		newHead.y = oldHead.y - 1
 	case right:
@@ -179,8 +195,13 @@ func (state *gameState) updateSnake(screen tcell.Screen) {
 	}
 
 	state.snake = append(state.snake, newHead)
-
 	state.draw(screen)
+
+	state.lastHeading = heading
+	//Resetting the direction to; since user input is ignored if it's
+	//not "none". This is in order to avoid two direction changes within
+	//a single screen-update.
+	state.heading = none
 }
 
 // clearScreen only clears the fields of the screen that have already been
@@ -198,7 +219,7 @@ func (state *gameState) clearScreen(screen tcell.Screen) {
 }
 
 // draw fills the screen according to state. It draws the apple and the
-// snake, followed by pushing the update to the terminal. 
+// snake, followed by pushing the update to the terminal.
 func (state *gameState) draw(screen tcell.Screen) {
 	if state.apple != nil {
 		screen.SetContent(state.apple.x, state.apple.y, apple[0], apple[1:], tcell.StyleDefault)
