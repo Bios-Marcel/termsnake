@@ -4,13 +4,17 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/gdamore/tcell"
 )
 
-var apple = []rune("🍎")
+var (
+	greenStyle = tcell.StyleDefault.Foreground(tcell.ColorGreen)
+	apple = []rune("🍎")
+)
 
 const fullBlock = '█'
 
@@ -20,8 +24,10 @@ type loc struct {
 }
 
 type gameState struct {
-	snake       []*loc
-	apple       *loc
+	snake []*loc
+	apple *loc
+	score int
+	
 	lock        *sync.Mutex
 	heading     direction
 	lastHeading direction
@@ -39,7 +45,7 @@ func main() {
 		err := recover()
 		if err != nil {
 			panic(err)
-			screen.Fini()
+			screen.Fini() 
 		}
 	}()
 
@@ -51,15 +57,24 @@ func main() {
 	screen.Clear()
 
 	width, height := screen.Size()
+	height = height - 1
+	//-1 since we use the bottom for drawing a status bar
 	halfWidth := width / 2
 	state := &gameState{
-		lock:   &sync.Mutex{},
-		width:  width,
-		height: height,
+		lock:    &sync.Mutex{},
+		width:   width,
+		height:  height,
 		//Let snake start at the bottom and make sure it's not on an odd x coordinate.
 		snake:   []*loc{{halfWidth - (halfWidth % 2), height - 1}},
 		heading: up,
 	}
+
+	screen.SetCell(0, state.height, tcell.StyleDefault, 'S')
+	screen.SetCell(1, state.height, tcell.StyleDefault, 'c')
+	screen.SetCell(2, state.height, tcell.StyleDefault, 'o')
+	screen.SetCell(3, state.height, tcell.StyleDefault, 'r')
+	screen.SetCell(4, state.height, tcell.StyleDefault, 'e')
+	screen.SetCell(5, state.height, tcell.StyleDefault, ':')
 	state.draw(screen)
 
 	//User Eventloop
@@ -100,7 +115,7 @@ func main() {
 type direction int
 
 const (
-	none  direction = 0
+    none  direction = 0  
 	up              = 1
 	right           = 2
 	down            = 3
@@ -114,11 +129,11 @@ func (state *gameState) changeDirection(newDirection direction) {
 	//Directions can only be changed one inbetween one screen-update
 	if state.heading == none {
 		if len(state.snake) == 1 || state.lastHeading == up && newDirection != down ||
-			state.lastHeading == left && newDirection != right ||
+			state.lastHeading == left && newDirection != right || 
 			state.lastHeading == right && newDirection != left ||
 			state.lastHeading == down && newDirection != up {
 			state.heading = newDirection
-		}
+		}	
 	}
 }
 
@@ -153,11 +168,11 @@ func (state *gameState) updateSnake(screen tcell.Screen) {
 	if state.heading == none {
 		heading = state.lastHeading
 	} else {
-		heading = state.heading
+		heading = state.heading		
 	}
 
 	newHead := &loc{oldHead.x, oldHead.y}
-
+	
 	switch heading {
 	case up:
 		newHead.y = oldHead.y - 1
@@ -182,6 +197,7 @@ func (state *gameState) updateSnake(screen tcell.Screen) {
 		if state.apple != nil && newHead.x == state.apple.x && newHead.y == state.apple.y {
 			//TODO Check whether snake fills out the field
 			grow = true
+			state.score = state.score + 1
 
 			state.addApple()
 		}
@@ -196,7 +212,7 @@ func (state *gameState) updateSnake(screen tcell.Screen) {
 
 	state.snake = append(state.snake, newHead)
 	state.draw(screen)
-
+	
 	state.lastHeading = heading
 	//Resetting the direction to; since user input is ignored if it's
 	//not "none". This is in order to avoid two direction changes within
@@ -216,19 +232,37 @@ func (state *gameState) clearScreen(screen tcell.Screen) {
 		screen.SetCell(bodyPart.x, bodyPart.y, tcell.StyleDefault, ' ')
 		screen.SetCell(bodyPart.x+1, bodyPart.y, tcell.StyleDefault, ' ')
 	}
+
+	//Clear bottombar staring at 7, sicne we want to leave "Score: "
+	for i := 7; i < state.width; i++ {
+		screen.SetCell(i, state.height, tcell.StyleDefault, ' ')
+	}
 }
 
 // draw fills the screen according to state. It draws the apple and the
-// snake, followed by pushing the update to the terminal.
+// snake, followed by pushing the update to the terminal. 
 func (state *gameState) draw(screen tcell.Screen) {
 	if state.apple != nil {
 		screen.SetContent(state.apple.x, state.apple.y, apple[0], apple[1:], tcell.StyleDefault)
 	}
 
-	for _, bodyPart := range state.snake {
-		screen.SetCell(bodyPart.x, bodyPart.y, tcell.StyleDefault, fullBlock)
-		screen.SetCell(bodyPart.x+1, bodyPart.y, tcell.StyleDefault, fullBlock)
+	for index, bodyPart := range state.snake {
+		if index == len(state.snake) - 1 {	
+			screen.SetCell(bodyPart.x, bodyPart.y, greenStyle, fullBlock)
+			screen.SetCell(bodyPart.x+1, bodyPart.y, greenStyle, fullBlock)			
+		} else {
+			screen.SetCell(bodyPart.x, bodyPart.y, tcell.StyleDefault, fullBlock)
+			screen.SetCell(bodyPart.x+1, bodyPart.y, tcell.StyleDefault, fullBlock)
+		}
 	}
+
+	//7, since we want to leave a space
+	nextCell := 7
+	for _, char := range []rune(strconv.Itoa(state.score)) {
+		screen.SetCell(nextCell, state.height, tcell.StyleDefault, char)
+		nextCell = nextCell + 1
+	}
+	
 
 	screen.Show()
 }
